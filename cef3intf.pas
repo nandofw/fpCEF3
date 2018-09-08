@@ -202,6 +202,28 @@ Type
 
   ICefStringMap = interface;
   ICefStringMultiMap = interface;
+  ICefView = interface;
+  ICefViewDelegate = interface;
+  ICefDisplay = interface;
+  ICefLayout = interface;
+  ICefBoxLayout = interface;
+  ICefTextfield = interface;
+  ICefTextfieldDelegate = interface;
+  ICefScrollView = interface;
+  ICefPanel = interface;
+  ICefPanelDelegate = interface;
+  ICefBrowserView = interface;
+  ICefBrowserViewDelegate = interface;
+  ICefButton = interface ;
+  ICefButtonDelegate = interface ;
+  ICefLabelButton = interface;
+  ICefMenuButton = interface ;
+  ICefWindow = interface;
+  ICefWindowDelegate = interface;
+  Icefextension = interface;
+  Icefextensionhandler = interface;
+  Icefgetextensionresourcecallback = interface;
+
 
 
   // Callbacks
@@ -224,17 +246,60 @@ Type
   TCefWebPluginInfoVisitorProc = function(const info: ICefWebPluginInfo; count, total: Integer): Boolean;
   TCefWebPluginIsUnstableProc = procedure(const path: ustring; unstable: Boolean);
   TCefRegisterCdmCallbackProc = procedure(result: TCefCdmRegistrationError; const errorMessage: ustring);
-
-  TOnBeforeCommandLineProcessing = procedure(const processType: ustring; const commandLine: ICefCommandLine);
+  TOnBeforeCommandLineProcessing = procedure(const processType: ustring;const commandLine: ICefCommandLine);
   TOnRegisterCustomSchemes = procedure(const registrar: TCefSchemeRegistrarRef);
 
 
-  ICefBaseRefCounted = interface ['{1F9A7B44-DCDC-4477-9180-3ADD44BDEB7B}']
-    function Wrap: Pointer;
-  end;
+   ICefBaseRefCounted = interface ['{1F9A7B44-DCDC-4477-9180-3ADD44BDEB7B}']
+   function Wrap: Pointer;
+   function SameAs(aData : Pointer) : boolean;
+   end;
+
+   ICefaccessibilityhandler = interface(ICefBaseRefCounted)
+   procedure onaccessibilitytreechange(value: ICefvalue);
+   procedure onaccessibilitylocationchange(value: ICefvalue);
+   end;
+
+   Icefextension = interface(ICefBaseRefCounted) ['{28CC4DC0-FD9A-477F-947A-8B426E005C6C}']
+   function getidentifier : ustring;
+   function getpath : ustring;
+   function getmanifest : ICefdictionaryvalue;
+   function issame (const that : ICefExtension) : boolean;
+   function gethandler : ICefextensionhandler;
+   function getloadercontext : Icefrequestcontext;
+   function isloaded : boolean;
+   procedure unload;
+
+    property  Identifier    : ustring              read GetIdentifier;
+    property  Path          : ustring              read GetPath;
+    property  Manifest      : ICefDictionaryValue  read GetManifest;
+    property  Handler       : ICefExtensionHandler read GetHandler;
+    property  LoaderContext : ICefRequestContext   read GetLoaderContext;
+    end;
+
+
+   Icefgetextensionresourcecallback = interface(ICefBaseRefCounted) ['{6D6D94C4-8093-423D-A28F-C00A1C6EC61F}']
+   procedure cont(const stream: ICefStreamReader);
+   procedure cancel;
+   end;
+
+
+
+    Icefextensionhandler = interface(ICefBaseRefCounted) ['{9EA81617-AFAD-44C9-B8F8-A5566E355DF2}']
+    procedure OnExtensionLoadFailed(result: TCefErrorcode);
+    procedure OnExtensionLoaded(const extension: ICefExtension);
+    procedure OnExtensionUnloaded(const extension: ICefExtension);
+    function  OnBeforeBackgroundBrowser(const extension: ICefExtension; const url: ustring; var client: ICefClient; var settings: TCefBrowserSettings) : boolean;
+    function  OnBeforeBrowser(const extension: ICefExtension; const browser, active_browser: ICefBrowser; index: Integer; const url: ustring; active: boolean; var windowInfo: TCefWindowInfo; var client: ICefClient; var settings: TCefBrowserSettings) : boolean;
+    function  GetActiveBrowser(const extension: ICefExtension; const browser: ICefBrowser; include_incognito: boolean): ICefBrowser;
+    function  CanAccessBrowser(const extension: ICefExtension; const browser: ICefBrowser; include_incognito: boolean; const target_browser: ICefBrowser): boolean;
+    function  GetExtensionResource(const extension: ICefExtension; const browser: ICefBrowser; const file_: ustring; const callback: ICefGetExtensionResourceCallback): boolean;
+    end;
+
+
 
   ICefApp = interface(ICefBaseRefCounted) ['{970CA670-9070-4642-B188-7D8A22DAEED4}']
-    procedure OnBeforeCommandLineProcessing(const processType: ustring; const commandLine: ICefCommandLine);
+    procedure OnBeforeCommandLineProcessing(const processType: ustring;const  commandLine: ICefCommandLine);
     procedure OnRegisterCustomSchemes(const registrar: TCefSchemeRegistrarRef);
     function GetResourceBundleHandler: ICefResourceBundleHandler;
     function GetBrowserProcessHandler: ICefBrowserProcessHandler;
@@ -351,6 +416,10 @@ Type
     procedure DragSourceEndedAt(x,y: Integer; op: TCefDragOperationsMask);
     procedure DragSourceSystemDragEnded;
     function GetVisibleNavigationEntry: ICefNavigationEntry;
+    procedure SetAccessibilityState(accessibilityState: TCefState);
+    procedure SetAutoResizeEnabled(enabled: boolean; const min_size, max_size: PCefSize);
+    function  GetExtension : ICefExtension;
+    function  IsBackgroundHost : boolean;
 
     property Browser: ICefBrowser read GetBrowser;
     property WindowHandle: TCefWindowHandle read GetWindowHandle;
@@ -386,7 +455,6 @@ Type
     function GetDragHandler: ICefDragHandler;
     function GetFindHandler: ICefFindHandler;
     function GetFocusHandler: ICefFocusHandler;
-    function GetGeolocationHandler: ICefGeolocationHandler;
     function GetJsdialogHandler: ICefJsdialogHandler;
     function GetKeyboardHandler: ICefKeyboardHandler;
     function GetLifeSpanHandler: ICefLifeSpanHandler;
@@ -494,9 +562,10 @@ Type
       const callback: ICefDeleteCookiesCallback): Boolean;
     function DeleteCookiesProc(const url, cookieName: ustring;
       const proc: TCefDeleteCookiesCallbackProc): Boolean;
-    function SetStoragePath(const path: ustring; PersistSessionCookies: Boolean;
-      callback: ICefCompletionCallback): Boolean;
+    function SetStoragePath(const path: ustring; PersistSessionCookies: Boolean; callback: ICefCompletionCallback): Boolean;
+    function SetStoragePathProc(const path: ustring; persistSessionCookies: Boolean; const callback: TCefCompletionCallbackProc): Boolean;
     function FlushStore(handler: ICefCompletionCallback): Boolean;
+    function FlushStoreProc(const proc: TCefCompletionCallbackProc): Boolean;
   end;
 
   ICefCookieVisitor = interface(ICefBaseRefCounted) ['{8378CF1B-84AB-4FDB-9B86-34DDABCCC402}']
@@ -529,7 +598,7 @@ Type
     procedure OnFullscreenModeChange(const browser: ICefBrowser; fullscreen: Boolean);
     function OnTooltip(const browser: ICefBrowser; var text: ustring): Boolean;
     procedure OnStatusMessage(const browser: ICefBrowser; const value: ustring);
-    function OnConsoleMessage(const browser: ICefBrowser; const message, source: ustring; line: Integer): Boolean;
+    function OnConsoleMessage(const browser: ICefBrowser;level: TCefLogSeverity; const message, source: ustring; line: Integer): Boolean;
   end;
 
   ICefDomVisitor = interface(ICefBaseRefCounted) ['{30398428-3196-4531-B968-2DDBED36F6B0}']
@@ -946,6 +1015,7 @@ Type
   end;
 
   ICefRenderHandler = interface(ICefBaseRefCounted) ['{2AB9C201-F638-4AFE-ADDA-3DCDB556B2FD}']
+    function getaccessibilityhandler(): PCefaccessibilityhandler;
     function GetRootScreenRect(const browser: ICefBrowser; rect: PCefRect): Boolean;
     function GetViewRect(const browser: ICefBrowser; rect: PCefRect): Boolean;
     function GetScreenPoint(const browser: ICefBrowser; viewX, viewY: Integer;
@@ -964,6 +1034,8 @@ Type
     procedure OnScrollOffsetChanged(const browser: ICefBrowser; x,y: Double);
     procedure OnImeCompositionRangeChanged(const browser: ICefBrowser;
       const selectedRange: TCefRange; characterBoundsCount: TSize; characterBounds: TCefRectArray);
+     procedure ontextselectionchanged(const browser: ICefBrowser;
+      selectedtext: PCefString; selectedrange: PCefrange);
   end;
 
   ICefRenderProcessHandler = interface(ICefBaseRefCounted) ['{FADEE3BC-BF66-430A-BA5D-1EE3782ECC58}']
@@ -1079,7 +1151,7 @@ Type
 
   ICefRequestHandler = interface(ICefBaseRefCounted) ['{050877A9-D1F8-4EB3-B58E-50DC3E3D39FD}']
     function OnBeforeBrowse(const browser: ICefBrowser; const frame: ICefFrame;
-      const request: ICefRequest; isRedirect: Boolean): Boolean;
+      const request: ICefRequest; user_gesture, isRedirect: Boolean): Boolean;
     function OnOpenUrlFromTab(browser: ICefBrowser; frame: ICefFrame;
       const targetUrl: ustring; targetDisposition: TCefWindowOpenDisposition; useGesture: Boolean): Boolean;
     function OnBeforeResourceLoad(const browser: ICefBrowser; const frame: ICefFrame;
@@ -1098,6 +1170,8 @@ Type
     function GetAuthCredentials(const browser: ICefBrowser; const frame: ICefFrame;
       isProxy: Boolean; const host: ustring; port: Integer; const realm, scheme: ustring;
       const callback: ICefAuthCallback): Boolean;
+    function cangetcookies(browser: ICefBrowser; frame: ICefFrame; request:ICefrequest):integer;
+    function cansetcookie(browser: ICefBrowser;frame: ICefFrame;request:ICefrequest; cookie: TCefcookie):integer;
     function OnQuotaRequest(const browser: ICefBrowser;
       const originUrl: ustring; newSize: Int64; const callback: ICefRequestCallback): Boolean;
     procedure OnProtocolExecution(const browser: ICefBrowser; const url: ustring;
@@ -1628,6 +1702,256 @@ Type
     property Enumerate[const aKey: ustring; ValueIndex: TSize]: ustring read GetEnumerate;
   end;
 
+    ICefDisplay = interface (ICefBaseRefCounted) ['{4F73B6D7-5DB1-46D1-A055-FA8271917529}']
+    function getid : int64;
+    function getdevicescalefactor : Single;
+    procedure convertpointtopixels (point: PCefPoint);
+    procedure convertpointfrompixels(point: PCefPoint);
+    function getbounds : PCefRect;
+    function getworkarea : PCefRect;
+    function getrotation : Integer;
+    end;
+
+    ICefView = interface (ICefBaseRefCounted) ['{D2999060-5738-4E07-A6E3-1015C2D5F94C}']
+    function asbrowserview: ICefBrowserView;
+    function asbutton: ICefButton;
+    function aspanel: ICefPanel;
+    function asscrollview : ICefScrollView;
+    function astextfield: ICefTextfield;
+    function gettypestring: TCefStringUserFree;
+    function tostring (include_children: Integer): TCefStringUserFree;
+    function isvalid: Integer;
+    function isattached: Integer;
+    function issame: Integer;
+    function getdelegate: ICefViewDelegate;
+    function getwindow: ICefWindow;
+    function getid: Integer;
+    procedure setid(id: Integer);
+    function getgroup_id: Integer;
+    procedure setgroup_id(group_id: Integer);
+    function getparent_view: ICefView;
+    function getview_for_id(id: Integer): ICefView;
+    procedure setbounds(const bounds: TCefRect);
+    function getbounds: TCefRect;
+    function getbounds_in_screen: TCefRect;
+    procedure setsize(const size: TCefSize);
+    function getsize: TCefSize;
+    procedure setposition(const position: TCefPoint);
+    function getposition: TCefPoint;
+    function getpreferred_size: TCefSize;
+    procedure sizeto_preferred_size;
+    function getminimumsize: TCefSize;
+    function getmaximumsize : TCefSize;
+    function getheight_for_width(width: Integer): Integer;
+    procedure invalidatelayout;
+    procedure setvisible(visible: Integer);
+    function isvisible: Integer;
+    function isdrawn: Integer;
+    procedure setenabled(enabled: Integer);
+    function isenabled: Integer;
+    procedure setfocusable(focusable: Integer);
+    function isfocusable: Integer;
+    function isaccessibilityfocusable: Integer;
+    procedure requestfocus;
+    procedure setbackgroundcolor (color: TCefColor);
+    function getbackgroundcolor : TCefColor;
+    function convertpointtoscreen(point: TCefPoint): Integer;
+    function convertpointfromscreen(point: TCefPoint): Integer;
+    function convertpointtowindow(point: TCefPoint): Integer;
+    function convertpointfromwindow(point: TCefPoint): Integer;
+    function convertpointtoview(point: TCefPoint): Integer;
+    function convertpointfromview(point: TCefPoint): Integer;
+    end;
+
+    ICefViewDelegate = interface(ICefBaseRefCounted) ['{A2735E4B-E29E-429D-A60D-912495CB6069}']
+    function getpreferredsize (const view: ICefView): TCefSize;
+    function getminimumsize (const view: ICefView): TCefSize;
+    function getmaximumsize (const view: ICefView): TCefSize;
+    function getheightforwidth (const view: ICefView;const width: Integer): Integer;
+    procedure onparentviewchanged (const view: ICefView;const added: Integer; const parent: PCefView);
+    procedure onchildviewchanged  (const view: ICefView;const added: Integer; const child: PCefView);
+    procedure onfocus (const view: ICefView);
+    procedure onblur (const view: ICefView);
+    end;
+
+    ICefLayout = interface (ICefBaseRefCounted) ['{ACDA0F35-EA39-43B8-8E11-5280326D9214}']
+    function asboxlayout : PCefBoxLayout;
+    function asfilllayout : PCefFillLayout;
+    function isvalid : Integer;
+    end;
+
+    ICefBoxLayout = interface (ICefLayout) ['{78EC4CF9-BC81-407E-B5EC-2D5332D99C2C}']
+    procedure setflexforview ( view: ICefView; flex: Integer);
+    procedure clearflexforview ( view: ICefView);
+    end;
+
+    ICefTextfield = interface(ICefView) ['{B956D65F-42D5-4A62-9A0C-4CCB0143852B}']
+    procedure setpasswordinput( password_input: Integer);
+    function ispasswordinput: Integer;
+    procedure setreadonly ( read_only: Integer);
+    function isreadonly : Integer;
+    function gettext : TCefStringUserFree;
+    procedure settext ( const text: TCefString);
+    procedure appendtext ( const text: TCefString);
+    procedure insertorreplacetext ( const text: TCefString);
+    function hasselection : Integer;
+    function getselectedtext : TCefStringUserFree;
+    procedure selectall ( reversed: Integer);
+    procedure clearselection;
+    function getselectedrange : TCefRange;
+    procedure select_range  ( const range: TCefRange);
+    function getcursor_position : NativeUInt;
+    procedure settextcolor (color: TCefColor);
+    function gettext_color : TCefColor;
+    procedure setselectiontextcolor ( color: TCefColor);
+    function getselectiontextcolor : TCefColor;
+    procedure setselectionbackgroundcolor (color: TCefColor);
+    function getselectionbackgroundcolor : TCefColor;
+    procedure setfontlist ( const font_list: TCefString);
+    procedure applytextcolor ( color: TCefColor; const range: TCefRange);
+    procedure applytextstyle  (style: TCefTextStyle; add: Integer; const range: TCefRange);
+    function iscommandenabled ( command_id: Integer): Integer;
+    procedure executecommand   ( command_id: Integer);
+    procedure clearedithistory ;
+    procedure setplaceholdertext( const text: PCefString);
+    function getplaceholdertext : PCefStringUserFree;
+    procedure setplaceholdertextcolor ( color: TCefColor);
+    procedure setaccessiblename ( const name: PCefString);
+    end;
+
+    ICefTextfieldDelegate = interface(ICefViewDelegate)  ['{DA8C65E5-3578-4398-AC87-3DF840B689B8}']
+    function onkeyevent( textfield: ICefTextfield; const event: TCefKeyEvent): Integer;
+    procedure onafteruseraction( textfield: ICefTextfield);
+    end;
+
+    ICefScrollView = interface(ICefView) ['{08F6520E-E05D-4BAD-AE3B-2ACCF30F94CF}']
+    procedure setcontentview ( view: ICefView);
+    function getcontentview : ICefView;
+    function getvisiblecontentrect : TCefRect;
+    function hashorizontalscrollbar : Integer;
+    function gethorizontalscrollbarheight : Integer;
+    function hasverticalscrollbar : Integer;
+    function getverticalscrollbarwidth : Integer;
+    end;
+
+    ICefPanel = interface(ICefView)['{DC7027E2-E40E-448C-9A2B-0CBB3B6ECB32}']
+    function aswindow : ICefWindow;
+    function settofilllayout : TCefFillLayout;
+    function setto_box_layout (const settings: TCefBoxLayoutSettings): ICefBoxLayout;
+    function getlayout : ICefLayout;
+    procedure layout ;
+    procedure addchildview (view: ICefView);
+    procedure addchildviewat ( view: ICefView; index: Integer);
+    procedure reorderchildview ( view: ICefView; index: Integer);
+    procedure removechildview ( view: ICefView);
+    procedure removeallchildviews;
+    function getchildviewcount : NativeUInt;
+    function getchildviewat( index: Integer): ICefView;
+    end;
+
+    ICefPanelDelegate = interface(ICefViewDelegate) ['{56FC88D7-C701-417A-AFD1-C87E90BC5962}']
+    end;
+
+    ICefBrowserView = interface(ICefView)['{B13790B4-1A59-4743-93D3-353DF887FD01}']
+    function getbrowser : ICefBrowser;
+    procedure setpreferaccelerators (prefer_accelerators: Integer);
+    end;
+
+    ICefBrowserViewDelegate = interface(ICefViewDelegate)['{5656080A-B0D7-4C46-AFFD-9B604B0066E6}']
+    procedure onbrowsercreated ( browserview: ICefBrowserView; browser: ICefBrowser);
+    procedure onbrowserdestroyed (browserview: ICefBrowserView; browser: ICefBrowser);
+    function getdelegateforpopupbrowserview ( browserview: ICefBrowserView; const settings: TCefBrowserSettings; client: ICefClient; is_devtools: Integer): ICefBrowserViewDelegate;
+    function onpopupbrowserviewcreated ( browserview, popupbrowserview: ICefBrowserView; is_devtools: Integer): Integer;
+    end;
+
+    ICefButton = interface(ICefView) ['{E5F64BA4-E804-4A0C-B0BC-0675DC768AA0}']
+    function aslabelbutton : ICefLabelButton;
+    procedure setstate (state: TCefButtonState);
+    function getstate : TCefButtonState;
+    procedure setinkdropenabled (enabled: Integer);
+    procedure settooltiptext ( const tooltip_text: TCefString);
+    procedure setaccessiblename (const name: TCefString);
+    end;
+
+    ICefButtonDelegate = interface(ICefViewDelegate) ['{F6F3370C-D3AF-45AC-AFCF-5B0C62B24EB3}']
+    procedure onbuttonpressed (button: ICefButton);
+    procedure onbuttonstatechanged (button: ICefButton);
+    end;
+
+    ICefLabelButton = interface(ICefButton) ['{AE6C3EFF-DA05-4C18-BBCA-801B345E0C9B}']
+    function  get_state : TCefMenuButton;
+    procedure settext (const text: TCefString);
+    function  gettext  : TCefStringUserFree;
+    procedure setimage ( button_state: TCefButtonState; image: PCefImage);
+    function  getimage ( button_state: TCefButtonState): PCefImage;
+    procedure settextcolor ( for_state: TCefButtonState; color: TCefColor);
+    procedure setenabledtextcolors ( color: TCefColor);
+    procedure setfontlist ( const font_list: TCefString);
+    procedure sethorizontalalignment ( alignment: TCefHorizontalAlignment);
+    procedure setminimumsize ( const size: TCefSize);
+    procedure setmaximumsize ( const size: TCefSize);
+    end;
+
+    ICefMenuButton = interface(ICefLabelButton)  ['{D54C918E-EED6-44B5-9214-B0A82DC8624F}']
+    procedure showmenu ( menu_model: ICefMenuModel; const screen_point: TCefPoint; anchor_position: TCefMenuAnchorPosition);
+    procedure triggermenu ;
+    end;
+
+    ICefMenuButtonDelegate = interface(ICefButtonDelegate) ['{0823FC14-A252-488A-89CD-5DFB3C581088}']
+    procedure onmenubuttonpressed( menu_button: ICefMenuButton; const screen_point: TCefPoint; button_pressed_lock: TCefMenuButtonPressedLock);
+    end;
+
+    ICefWindow = interface(ICefPanel) ['{80A1BF4C-DC25-4B09-B234-2B4BE972D607}']
+    procedure show;
+    procedure hide;
+    procedure centerwindow(const size: TCefSize);
+    procedure close;
+    function isclosed : Integer;
+    procedure activate;
+    procedure deactivate;
+    function isactive : Integer;
+    procedure bringtotop;
+    procedure setalwaysontop ( ontop: Integer);
+    function isalwaysontop: Integer;
+    procedure maximize;
+    procedure minimize;
+    procedure restore;
+    procedure setfullscreen(fullscreen: Integer);
+    function ismaximized : Integer;
+    function isminimized : Integer;
+    function isfullscreen : Integer;
+    procedure settitle ( const title: TCefString);
+    function gettitle : TCefStringUserFree;
+    procedure setwindowicon (image: ICefImage);
+    function getwindowicon : ICefImage;
+    procedure setwindowappicon (image: ICefImage);
+    function getwindowappicon : ICefImage;
+    procedure showmenu ( menu_model: ICefMenuModel; const screen_point: TCefPoint; anchor_position : TCefMenuAnchorPosition);
+    procedure cancelmenu ;
+    function getdisplay : ICefDisplay;
+    function getclientareaboundsinscreen : TCefRect;
+    procedure setdraggableregions ( regionsCount: NativeUInt; regions: TCefDraggableRegionArray);
+    function getwindowhandle : TCefWindowHandle;
+    procedure sendkeypress ( key_code: Integer; event_flags: cardinal);
+    procedure sendmousemove ( screen_x, screen_y: Integer);
+    procedure sendmouseevents ( button: TCefMouseButtonType; mouse_down, mouse_up: Integer);
+    procedure setaccelerator (command_id, key_code, shift_pressed, ctrl_pressed, alt_pressed: Integer);
+    procedure removeaccelerator(command_id: Integer);
+    procedure removeallaccelerators;
+    end;
+
+    ICefWindowDelegate = interface(ICefPanelDelegate) ['{8167A785-7E2E-442F-8268-2335BC365579}']
+    procedure onwindowcreated(window: ICefWindow);
+    procedure onwindowdestroyed(window: ICefWindow);
+    function getparentwindow(window: ICefWindow; is_menu, can_activate_menu: Integer): ICefWindow;
+    function isframeless(window: ICefWindow): Integer;
+    function canresize(window: ICefWindow): Integer;
+    function canmaximize( window: ICefWindow): Integer;
+    function canminimize( window: ICefWindow): Integer;
+    function canclose( window: ICefWindow): Integer;
+    function onaccelerator( window: ICefWindow; command_id: Integer): Integer;
+    function onkeyevent( window: ICefWindow; const event: TCefKeyEvent): Integer;
+    end;
 Implementation
 
 end.

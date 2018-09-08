@@ -17,7 +17,7 @@
  *
  *)
 
-{.$DEFINE DEBUG}
+//{$DEFINE DEBUG}
 
 // Don't change this, unless you know, what you are doing
 {$DEFINE CEF_STRING_TYPE_UTF16}

@@ -91,9 +91,6 @@ function CefDirectoryExists(const path: ustring): Boolean;
 function CefDeleteFile(const path: ustring; recursive: Boolean): Boolean;
 function CefZipDirectory(const srcDir, destFile: ustring; includeHiddenFiles: Boolean): Boolean;
 
-function CefGetGeolocation(const callback: ICefGetGeolocationCallback): Boolean;
-function CefGetGeolocationProc(const callback: TCefGetGeolocationCallbackProc): Boolean;
-
 function CefAddCrossOriginWhitelistEntry(const SourceOrigin, TargetProtocol, TargetDomain: ustring; AllowTargetSubdomains: Boolean): Boolean;
 function CefRemoveCrossOriginWhitelistEntry(const SourceOrigin, TargetProtocol, TargetDomain: ustring; AllowTargetSubdomains: Boolean): Boolean;
 function CefClearCrossOriginWhitelist: Boolean;
@@ -221,7 +218,8 @@ Var
 
   // allow custom library location, can be relative
   CefLibraryDirPath: String = '';
-
+  customarg : ppchar;
+  customargcoount:integer = 0;
 Implementation
 
 Type
@@ -429,6 +427,8 @@ Var
   ErrCode: Integer;
 
   Args : TCefMainArgs;
+  x:integer;
+  found:boolean;
 begin
   {$IFDEF DEBUG}
   Debugln('CefInitialize');
@@ -454,7 +454,6 @@ begin
 {$ENDIF}
   Settings.external_message_pump := Ord(CefExternalMessagePump);
   Settings.windowless_rendering_enabled := Ord(CefWindowlessRenderingEnabled);
-  Settings.cache_path := CefString(CefCachePath);
   Settings.command_line_args_disabled := Ord(CefCommandLineArgsDisabled);
   Settings.cache_path := CefString(CefCachePath);
   Settings.user_data_path := CefString(CefUserDataPath);
@@ -484,10 +483,49 @@ begin
 
   ErrCode := cef_execute_process(@Args, CefGetData(app), nil);
   {$ELSE}
-  Args.argc := argc;
-  Args.argv := argv;
 
-  ErrCode := cef_execute_process(@Args, CefGetData(app), nil);
+   //issue renderer process is never create. In console have this error
+   //[0901/094113.647033:ERROR:service_manager_context.cc(250)] Attempting to run unsupported native service: bla/bla/bla/test/content_renderer.service
+   //check http://magpcss.org/ceforum/viewtopic.php?f=14&t=16223 similar issuse
+   //check on first run the command line to add a customcommand to avoid a issuse whit render process not launch
+  {$IfDef LINUX}
+   found:= false;
+   for x:=1 to argc do
+   begin
+   if(comparetext(argv[x-1], pchar('--type=renderer')) = 0 )then
+      found:=true
+      else
+         if(comparetext(argv[x-1], pchar('--type=gpu-process')) = 0 )then
+         found:=true
+         else
+             if(comparetext(argv[x-1], pchar('--type=zygote')) = 0 )then
+             found:=true;
+   end;
+   customarg := argv;
+   customargcoount:= argc;
+   if not(found) then
+   begin
+   inc(customargcoount);
+   customarg[customargcoount-1]:= pchar('--renderer-cmd-prefix='+CefBrowserSubprocessPath) ;
+   Args.argc := customargcoount;
+   Args.argv := customarg;
+
+  {$IfDef DEBUG}
+  Debugln(' -------------------------');
+  Debugln('argcount= '+ inttostr(customargcoount) );
+  for x:=1 to customargcoount do
+  Debugln(customarg[x-1]);
+  Debugln(' -------------------------');
+  {$EndIf}
+
+   end;
+  {$Else}
+  Args.argc := argv;
+  Args.argv := argc;
+  {$EndIf}
+
+
+   ErrCode := cef_execute_process(@Args, CefGetData(app), nil);
   {$ENDIF}
 
   If ErrCode >= 0 then Halt(ErrCode);
@@ -650,16 +688,6 @@ begin
   s := CefString(srcDir);
   d := CefString(destFile);
   Result := cef_zip_directory(@s, @d, Ord(includeHiddenFiles)) <> 0;
-end;
-
-function CefGetGeolocation(const callback: ICefGetGeolocationCallback): Boolean;
-begin
-  Result := cef_get_geolocation(CefGetData(callback)) <> 0;
-end;
-
-function CefGetGeolocationProc(const callback: TCefGetGeolocationCallbackProc): Boolean;
-begin
-  Result := CefGetGeolocation(TCefFastGetGeolocationCallback.Create(callback));
 end;
 
 function CefAddCrossOriginWhitelistEntry(const SourceOrigin, TargetProtocol, TargetDomain: ustring;

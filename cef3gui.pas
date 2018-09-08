@@ -56,7 +56,8 @@ Type
   TOnFullscreenModeChange = procedure(Sender: TObject; const Browser: ICefBrowser; fullscreen: Boolean) of object;
   TOnTooltip = procedure(Sender: TObject; const Browser: ICefBrowser; var text: ustring; out Result: Boolean) of object;
   TOnStatusMessage = procedure(Sender: TObject; const Browser: ICefBrowser; const value: ustring) of object;
-  TOnConsoleMessage = procedure(Sender: TObject; const Browser: ICefBrowser; const message, Source: ustring; line: Integer; out Result: Boolean) of object;
+  TOnConsoleMessage = procedure(Sender: TObject; const Browser: ICefBrowser; level: TCefLogSeverity; const message, Source: ustring; line: Integer; out Result: Boolean) of object;
+  TOnloadingprogresschange = procedure(const browser: ICefBrowser; progress: double) of object;
 
   { DownloadHandler }
   TOnBeforeDownload = procedure(Sender: TObject; const Browser: ICefBrowser; const downloadItem: ICefDownloadItem;
@@ -285,7 +286,8 @@ Type
     procedure doOnFullscreenModeChange(const browser: ICefBrowser; fullscreen: Boolean);
     function doOnTooltip(const browser: ICefBrowser; var text: ustring): Boolean;
     procedure doOnStatusMessage(const browser: ICefBrowser; const value: ustring);
-    function doOnConsoleMessage(const browser: ICefBrowser; const message, source: ustring; line: Integer): Boolean;
+    function doOnConsoleMessage(const browser: ICefBrowser;level: TCefLogSeverity; const message, source: ustring; line: Integer): Boolean;
+    procedure doOnloadingprogresschange(const browser: ICefBrowser; progress: double);
 
     { CefDownloadHandler }
     procedure doOnBeforeDownload(const browser: ICefBrowser; const downloadItem: ICefDownloadItem;
@@ -362,6 +364,8 @@ Type
     procedure doOnScrollOffsetChanged(const browser: ICefBrowser; x,y: Double);
     procedure doOnImeCompositionRangeChanged(const browser: ICefBrowser;
       const selectedRange: TCefRange; characterBoundsCount: TSize; characterBounds: TCefRectArray);
+    procedure doontextselectionchanged(const browser: ICefBrowser; selectedtext: PCefString; selectedrange: PCefrange);
+
 
     { CefRequestHandler }
     function doOnBeforeBrowse(const browser: ICefBrowser; const frame: ICefFrame;
@@ -435,7 +439,7 @@ Type
     function GetDragHandler : ICefDragHandler; override;
     function GetFindHandler: ICefFindHandler; override;
     function GetFocusHandler: ICefFocusHandler; override;
-    function GetGeolocationHandler: ICefGeolocationHandler; override;
+   // function GetGeolocationHandler: ICefGeolocationHandler; override;
     function GetJsdialogHandler: ICefJsdialogHandler; override;
     function GetKeyboardHandler: ICefKeyboardHandler; override;
     function GetLifeSpanHandler: ICefLifeSpanHandler; override;
@@ -486,9 +490,10 @@ Type
     procedure OnTitleChange(const Browser: ICefBrowser; const title: ustring); override;
     procedure OnFaviconUrlchange(const Browser: ICefBrowser; iconUrls: TStrings); override;
     procedure OnFullscreenModeChange(const Browser: ICefBrowser; fullscreen: Boolean); override;
-    function OnTooltip(const Browser: ICefBrowser; var text: ustring): Boolean; override;
+    function  OnTooltip(const Browser: ICefBrowser; var text: ustring): Boolean; override;
     procedure OnStatusMessage(const Browser: ICefBrowser; const value: ustring); override;
-    function OnConsoleMessage(const Browser: ICefBrowser; const message, Source: ustring; line: Integer): Boolean; override;
+    function  OnConsoleMessage(const Browser: ICefBrowser;level: TCefLogSeverity; const message, Source: ustring; line: Integer): Boolean; override;
+    procedure onloadingprogresschange(const browser: ICefBrowser; progress: double); override;
   public
     constructor Create(const events: IChromiumEvents); reintroduce; virtual;
   end;
@@ -536,16 +541,16 @@ Type
     constructor Create(const events: IChromiumEvents); reintroduce; virtual;
   end;
 
-  TCustomGeolocationHandler = class(TCefGeolocationHandlerOwn)
-  private
-    fEvent: IChromiumEvents;
-  protected
-    function OnRequestGeolocationPermission(const Browser: ICefBrowser;
-      const requestingUrl: ustring; requestId: Integer; const callback: ICefGeolocationCallback): Boolean; override;
-    procedure OnCancelGeolocationPermission(const Browser: ICefBrowser; requestId: Integer); override;
-  public
-    constructor Create(const events: IChromiumEvents); reintroduce; virtual;
-  end;
+  //TCustomGeolocationHandler = class(TCefGeolocationHandlerOwn)
+ // private
+ //   fEvent: IChromiumEvents;
+ // protected
+ //   function OnRequestGeolocationPermission(const Browser: ICefBrowser;
+ //     const requestingUrl: ustring; requestId: Integer; const callback: ICefGeolocationCallback): Boolean; override;
+ //   procedure OnCancelGeolocationPermission(const Browser: ICefBrowser; requestId: Integer); override;
+ // public
+ //   constructor Create(const events: IChromiumEvents); reintroduce; virtual;
+ // end;
 
   TCustomJsDialogHandler = class(TCefJsDialogHandlerOwn)
   private
@@ -625,6 +630,7 @@ Type
     procedure OnScrollOffsetChanged(const browser: ICefBrowser; x,y: Double); override;
     procedure OnImeCompositionRangeChanged(const browser: ICefBrowser;
       const selectedRange: TCefRange; characterBoundsCount: TSize; characterBounds: TCefRectArray); override;
+    procedure ontextselectionchanged(const browser: ICefBrowser; selectedtext: PCefString; selectedrange: PCefrange); override;
   public
     constructor Create(const events: IChromiumEvents); reintroduce; virtual;
   end;
@@ -634,7 +640,7 @@ Type
     fEvent: IChromiumEvents;
   protected
     function OnBeforeBrowse(const browser: ICefBrowser; const frame: ICefFrame;
-      const request: ICefRequest; isRedirect: Boolean): Boolean; override;
+      const request: ICefRequest; user_gesture,isRedirect: Boolean): Boolean; override;
     function OnOpenUrlFromTab(browser: ICefBrowser; frame: ICefFrame;
       const targetUrl: ustring; targetDisposition: TCefWindowOpenDisposition; useGesture: Boolean): Boolean; override;
     function OnBeforeResourceLoad(const browser: ICefBrowser; const frame: ICefFrame;
@@ -781,10 +787,10 @@ begin
   Result := fFocusHandler;
 end;
 
-function TCustomClientHandler.GetGeolocationHandler: ICefGeolocationHandler;
-begin
-  Result := fGeolocationHandler;
-end;
+//function TCustomClientHandler.GetGeolocationHandler: ICefGeolocationHandler;
+//begin
+//  Result := fGeolocationHandler;
+//end;
 
 function TCustomClientHandler.GetJsdialogHandler : ICefJsdialogHandler;
 begin
@@ -834,7 +840,7 @@ begin
   fDragHandler := TCustomDragHandler.Create(events);
   fFindHandler := TCustomFindHandler.Create(events);
   fFocusHandler := TCustomFocusHandler.Create(events);
-  fGeolocationHandler := TCustomGeolocationHandler.Create(events);
+  //fGeolocationHandler := TCustomGeolocationHandler.Create(events);
   fJsDialogHandler := TCustomJsDialogHandler.Create(events);
   fKeyboardHandler := TCustomKeyboardHandler.Create(events);
   fLifeSpanHandler := TCustomLifeSpanHandler.Create(events);
@@ -909,10 +915,10 @@ begin
   fEvent.doOnAddressChange(Browser, Frame, url);
 end;
 
-function TCustomDisplayHandler.OnConsoleMessage(const Browser: ICefBrowser;
+function TCustomDisplayHandler.OnConsoleMessage(const Browser: ICefBrowser;level: TCefLogSeverity;
   const message, Source: ustring; line: Integer): Boolean;
 begin
-  Result := fEvent.doOnConsoleMessage(Browser, message, Source, line);
+  Result := fEvent.doOnConsoleMessage(Browser,level, message, Source, line);
 end;
 
 procedure TCustomDisplayHandler.OnStatusMessage(const Browser: ICefBrowser; const value: ustring);
@@ -939,6 +945,11 @@ end;
 function TCustomDisplayHandler.OnTooltip(const Browser: ICefBrowser; var text: ustring): Boolean;
 begin
   Result := fEvent.doOnTooltip(Browser, text);
+end;
+
+procedure TCustomDisplayHandler.onloadingprogresschange(const browser: ICefBrowser; progress: double);
+begin
+  fEvent.doonloadingprogresschange(Browser, progress);
 end;
 
 { TCustomDownloadHandler }
@@ -1022,24 +1033,24 @@ end;
 
 { TCustomGeolocationHandler }
 
-constructor TCustomGeolocationHandler.Create(const events: IChromiumEvents);
-begin
-  inherited Create;
-  fEvent := events;
-end;
+//constructor TCustomGeolocationHandler.Create(const events: IChromiumEvents);
+//begin
+//  inherited Create;
+//  fEvent := events;
+//end;
 
-function TCustomGeolocationHandler.OnRequestGeolocationPermission(const Browser: ICefBrowser;
-  const requestingUrl: ustring; requestId: Integer;
-  const callback: ICefGeolocationCallback): Boolean;
-begin
-  Result := fEvent.doOnRequestGeolocationPermission(Browser, requestingUrl, requestId, callback);
-end;
+//function TCustomGeolocationHandler.OnRequestGeolocationPermission(const Browser: ICefBrowser;
+//  const requestingUrl: ustring; requestId: Integer;
+//  const callback: ICefGeolocationCallback): Boolean;
+//begin
+//  Result := fEvent.doOnRequestGeolocationPermission(Browser, requestingUrl, requestId, callback);
+//end;
 
-procedure TCustomGeolocationHandler.OnCancelGeolocationPermission(
-  const Browser: ICefBrowser; requestId: Integer);
-begin
-  fEvent.doOnCancelGeolocationPermission(Browser, requestId);
-end;
+//procedure TCustomGeolocationHandler.OnCancelGeolocationPermission(
+//  const Browser: ICefBrowser; requestId: Integer);
+//begin
+//  fEvent.doOnCancelGeolocationPermission(Browser, requestId);
+//end;
 
 { TCustomJsDialogHandler }
 
@@ -1238,6 +1249,11 @@ begin
   fEvent.doOnImeCompositionRangeChanged(browser, selectedRange, characterBoundsCount, characterBounds);
 end;
 
+procedure TCustomRenderHandler.ontextselectionchanged(const browser: ICefBrowser; selectedtext: PCefString; selectedrange: PCefrange);
+begin
+   fEvent.doontextselectionchanged(browser, selectedtext, selectedrange)
+end;
+
 { TCustomRequestHandler }
 
 constructor TCustomRequestHandler.Create(const events: IChromiumEvents);
@@ -1247,7 +1263,7 @@ begin
 end;
 
 function TCustomRequestHandler.OnBeforeBrowse(const browser: ICefBrowser; const frame: ICefFrame;
-  const request: ICefRequest; isRedirect: Boolean): Boolean;
+  const request: ICefRequest; user_gesture,isRedirect: Boolean): Boolean;
 begin
   Result := fEvent.doOnBeforeBrowse(browser, frame, request, isRedirect);
 end;

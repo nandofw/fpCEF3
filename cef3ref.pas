@@ -38,6 +38,7 @@ Type
     constructor Create(data: Pointer); virtual;
     destructor Destroy; override;
     function Wrap: Pointer;
+    function SameAs(aData : Pointer) : boolean;
     class function UnWrap(data: Pointer): ICefBaseRefCounted;
   end;
 
@@ -67,6 +68,8 @@ Type
   public
     class function UnWrap(data: Pointer): ICefBrowser;
   end;
+
+  { TCefBrowserHostRef }
 
   TCefBrowserHostRef = class(TCefBaseRef, ICefBrowserHost)
     function GetBrowser: ICefBrowser;
@@ -128,9 +131,46 @@ Type
     procedure DragTargetDrop(const event: TCefMouseEvent);
     procedure DragSourceEndedAt(x,y: Integer; op: TCefDragOperationsMask);
     procedure DragSourceSystemDragEnded;
-    function GetVisibleNavigationEntry: ICefNavigationEntry;
+    function  GetVisibleNavigationEntry: ICefNavigationEntry;
+    procedure SetAccessibilityState(accessibilityState: TCefState);
+    procedure SetAutoResizeEnabled(enabled: boolean; const min_size, max_size: PCefSize);
+    function  GetExtension : ICefExtension;
+    function  IsBackgroundHost : boolean;
   public
     class function UnWrap(data: Pointer): ICefBrowserHost;
+  end;
+
+  { TCefExtensionRef }
+
+  TCefExtensionRef = class(TCefBaseRef, ICefExtension)
+  protected
+    function  GetIdentifier : ustring;
+    function  GetPath : ustring;
+    function  GetManifest : ICefDictionaryValue;
+    function  IsSame(const that : ICefExtension) : boolean;
+    function  GetHandler : ICefExtensionHandler;
+    function  GetLoaderContext: ICefRequestContext;
+    function  IsLoaded : boolean;
+    procedure unload;
+  public
+    class function UnWrap(data: Pointer): ICefExtension;
+  end;
+
+  { TCefExtensionHandlerRef }
+
+  TCefExtensionHandlerRef = class(TCefBaseRef, ICefExtensionHandler)
+  protected
+      procedure OnExtensionLoadFailed(result: TCefErrorcode);
+      procedure OnExtensionLoaded(const extension: ICefExtension);
+      procedure OnExtensionUnloaded(const extension: ICefExtension);
+      function  OnBeforeBackgroundBrowser(const extension: ICefExtension; const url: ustring; var client: ICefClient; var settings: TCefBrowserSettings) : boolean;
+      function  OnBeforeBrowser(const extension: ICefExtension; const browser, active_browser: ICefBrowser; index: Integer; const url: ustring; active: boolean; var windowInfo: TCefWindowInfo; var client: ICefClient; var settings: TCefBrowserSettings) : boolean;
+      function  GetActiveBrowser(const extension: ICefExtension; const browser: ICefBrowser; include_incognito: boolean): ICefBrowser;
+      function  CanAccessBrowser(const extension: ICefExtension; const browser: ICefBrowser; include_incognito: boolean; const target_browser: ICefBrowser): boolean;
+      function  GetExtensionResource(const extension: ICefExtension; const browser: ICefBrowser; const file_: ustring; const callback: ICefGetExtensionResourceCallback): boolean;
+
+  public
+      class function UnWrap(data: Pointer): ICefExtensionHandler;
   end;
 
   TCefCallbackRef = class(TCefBaseRef, ICefCallback)
@@ -139,6 +179,14 @@ Type
     procedure Cancel;
   public
     class function UnWrap(data: Pointer): ICefCallback;
+  end;
+
+  TCefGetExtensionResourceCallbackRef = class(TCefBaseRef, ICefGetExtensionResourceCallback)
+    protected
+      procedure Cont(const stream: ICefStreamReader);
+      procedure Cancel;
+    public
+      class function UnWrap(data: Pointer): ICefGetExtensionResourceCallback;
   end;
 
   TCefCommandLineRef = class(TCefBaseRef, ICefCommandLine)
@@ -210,28 +258,23 @@ Type
     procedure SetSupportedSchemesProc(schemes: TStrings; const proc: TCefCompletionCallbackProc);
     function VisitAllCookies(const visitor: ICefCookieVisitor): Boolean;
     function VisitAllCookiesProc(const visitor: TCefCookieVisitorProc): Boolean;
-    function VisitUrlCookies(const url: ustring;
-      includeHttpOnly: Boolean; const visitor: ICefCookieVisitor): Boolean;
-    function VisitUrlCookiesProc(const url: ustring;
-      includeHttpOnly: Boolean; const visitor: TCefCookieVisitorProc): Boolean;
-    function SetCookie(const url: ustring; const name, value, domain, path: ustring; secure, httponly,
-      hasExpires: Boolean; const creation, lastAccess, expires: TDateTime;
-      const callback: ICefSetCookieCallback): Boolean;
-    function SetCookieProc(const url: ustring; const name, value, domain, path: ustring; secure, httponly,
-      hasExpires: Boolean; const creation, lastAccess, expires: TDateTime;
-      const proc: TCefSetCookieCallbackProc): Boolean;
-    function DeleteCookies(const url, cookieName: ustring;
-      const callback: ICefDeleteCookiesCallback): Boolean;
-    function DeleteCookiesProc(const url, cookieName: ustring;
-      const proc: TCefDeleteCookiesCallbackProc): Boolean;
-    function SetStoragePath(const path: ustring; PersistSessionCookies: Boolean;
-      callback: ICefCompletionCallback): Boolean;
+    function VisitUrlCookies(const url: ustring; includeHttpOnly: Boolean; const visitor: ICefCookieVisitor): Boolean;
+    function VisitUrlCookiesProc(const url: ustring; includeHttpOnly: Boolean; const visitor: TCefCookieVisitorProc): Boolean;
+    function SetCookie(const url: ustring; const name, value, domain, path: ustring; secure, httponly, hasExpires: Boolean; const creation, lastAccess, expires: TDateTime; const callback: ICefSetCookieCallback): Boolean;
+    function SetCookieProc(const url: ustring; const name, value, domain, path: ustring; secure, httponly, hasExpires: Boolean; const creation, lastAccess, expires: TDateTime;  const proc: TCefSetCookieCallbackProc): Boolean;
+    function DeleteCookies(const url, cookieName: ustring;  const callback: ICefDeleteCookiesCallback): Boolean;
+    function DeleteCookiesProc(const url, cookieName: ustring; const proc: TCefDeleteCookiesCallbackProc): Boolean;
+    function SetStoragePath(const path: ustring; PersistSessionCookies: Boolean; callback: ICefCompletionCallback): Boolean;
+    function SetStoragePathProc(const path: ustring; persistSessionCookies: Boolean; const callback: TCefCompletionCallbackProc): Boolean;
     function FlushStore(handler: ICefCompletionCallback): Boolean;
+    function FlushStoreProc(const proc: TCefCompletionCallbackProc): Boolean;
   public
     class function UnWrap(data: Pointer): ICefCookieManager;
     class function Global(callback: ICefCompletionCallback): ICefCookieManager;
+    class function GlobalProc(const callback: TCefCompletionCallbackProc): ICefCookieManager;
     class function New(const path: ustring; persistSessionCookies: Boolean;
       callback: ICefCompletionCallback): ICefCookieManager;
+    class function NewProc(const path: ustring; persistSessionCookies: Boolean; const callback: TCefCompletionCallbackProc): ICefCookieManager;
   end;
 
   TCefFileDialogCallbackRef = class(TCefBaseRef, ICefFileDialogCallback)
@@ -1172,9 +1215,167 @@ Type
     class function New(const stream: ICefStreamReader): ICefZipReader;
   end;
 
+    TCefClientRef = class(TCefBaseRef, ICefClient)
+    protected
+    function GetContextMenuHandler: ICefContextMenuHandler;
+    function GetDialogHandler:ICefDialogHandler;
+    function GetDisplayHandler: ICefDisplayHandler;
+    function GetDownloadHandler: ICefDownloadHandler;
+    function GetDragHandler: ICefDragHandler;
+    function GetFindHandler: ICefFindHandler;
+    function GetFocusHandler: ICefFocusHandler;
+    function GetJsdialogHandler: ICefJsdialogHandler;
+    function GetKeyboardHandler: ICefKeyboardHandler;
+    function GetLifeSpanHandler: ICefLifeSpanHandler;
+    function GetLoadHandler: ICefLoadHandler;
+    function GetRenderHandler: ICefRenderHandler;
+    function GetRequestHandler: ICefRequestHandler;
+    function OnProcessMessageReceived(const browser: ICefBrowser; sourceProcess: TCefProcessId;
+      const message: ICefProcessMessage): Boolean;
+      procedure RemoveReferences; virtual;
+
+    public
+      class function UnWrap(data: Pointer): ICefClient;
+  end;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Implementation
 
 Uses cef3lib;
+
+{ TCefExtensionHandlerRef }
+
+procedure TCefExtensionHandlerRef.OnExtensionLoadFailed(result: TCefErrorcode);
+begin
+
+end;
+
+procedure TCefExtensionHandlerRef.OnExtensionLoaded(
+  const extension: ICefExtension);
+begin
+
+end;
+
+procedure TCefExtensionHandlerRef.OnExtensionUnloaded(
+  const extension: ICefExtension);
+begin
+
+end;
+
+function TCefExtensionHandlerRef.OnBeforeBackgroundBrowser(
+  const extension: ICefExtension; const url: ustring; var client: ICefClient;
+  var settings: TCefBrowserSettings): boolean;
+begin
+
+end;
+
+function TCefExtensionHandlerRef.OnBeforeBrowser(
+  const extension: ICefExtension; const browser, active_browser: ICefBrowser;
+  index: Integer; const url: ustring; active: boolean;
+  var windowInfo: TCefWindowInfo; var client: ICefClient;
+  var settings: TCefBrowserSettings): boolean;
+begin
+
+end;
+
+function TCefExtensionHandlerRef.GetActiveBrowser(
+  const extension: ICefExtension; const browser: ICefBrowser;
+  include_incognito: boolean): ICefBrowser;
+begin
+
+end;
+
+function TCefExtensionHandlerRef.CanAccessBrowser(
+  const extension: ICefExtension; const browser: ICefBrowser;
+  include_incognito: boolean; const target_browser: ICefBrowser): boolean;
+begin
+
+end;
+
+function TCefExtensionHandlerRef.GetExtensionResource(
+  const extension: ICefExtension; const browser: ICefBrowser;
+  const file_: ustring; const callback: ICefGetExtensionResourceCallback
+  ): boolean;
+begin
+
+end;
+
+class function TCefExtensionHandlerRef.UnWrap(data: Pointer
+  ): ICefExtensionHandler;
+begin
+   if (data <> nil) then
+    Result := Create(data) as ICefExtensionHandler
+   else
+    Result := nil;
+end;
+
+{ TCefExtensionRef }
+
+function TCefExtensionRef.GetIdentifier: ustring;
+begin
+   Result := CefStringFreeAndGet(PCefExtension(FData)^.get_identifier(PCefExtension(FData)));
+end;
+
+function TCefExtensionRef.GetPath: ustring;
+begin
+  Result := CefStringFreeAndGet(PCefExtension(FData)^.get_path(PCefExtension(FData)));
+end;
+
+function TCefExtensionRef.GetManifest: ICefDictionaryValue;
+begin
+  Result := TCefDictionaryValueRef.UnWrap(PCefExtension(FData)^.get_manifest(PCefExtension(FData)));
+end;
+
+function TCefExtensionRef.IsSame(const that: ICefExtension): boolean;
+begin
+ Result:= PCefExtension(FData)^.is_same(PCefExtension(FData), PCefExtension(CefGetData(that))) <> 0;
+end;
+
+function TCefExtensionRef.GetHandler: ICefExtensionHandler;
+begin
+ //Result := TCefExtensionHandlerRef.UnWrap(PCefExtension(FData)^.get_handler(PCefExtension(FData)));
+end;
+
+function TCefExtensionRef.GetLoaderContext: ICefRequestContext;
+begin
+ Result := TCefRequestContextRef.UnWrap(PCefExtension(FData)^.get_loader_context(PCefExtension(FData)));
+end;
+
+function TCefExtensionRef.IsLoaded: boolean;
+begin
+ Result := PCefExtension(FData)^.is_loaded(PCefExtension(FData)) <> 0;
+end;
+
+procedure TCefExtensionRef.unload;
+begin
+    PCefExtension(FData)^.unload(PCefExtension(FData));
+end;
+
+class function TCefExtensionRef.UnWrap(data: Pointer): ICefExtension;
+begin
+   if (data <> nil) then
+    Result := Create(data) as ICefExtension
+   else
+    Result := nil;
+end;
 
 { TCefBaseRef }
 
@@ -1195,6 +1396,12 @@ function TCefBaseRef.Wrap: Pointer;
 begin
   Result := fData;
   If Assigned(PCefBaseRefCounted(fData)^.add_ref) then PCefBaseRefCounted(fData)^.add_ref(fData);
+end;
+
+
+function TCefBaseRef.SameAs(aData : Pointer) : boolean;
+begin
+  Result := (FData = aData);
 end;
 
 class function TCefBaseRef.UnWrap(data: Pointer): ICefBaseRefCounted;
@@ -1636,6 +1843,27 @@ begin
   Result := TCefNavigationEntryRef.UnWrap(PCefBrowserHost(fData)^.get_visible_navigation_entry(fData));
 end;
 
+procedure TCefBrowserHostRef.SetAccessibilityState(accessibilityState: TCefState);
+begin
+  PCefBrowserHost(FData)^.set_accessibility_state(FData,accessibilityState);
+end;
+
+procedure TCefBrowserHostRef.SetAutoResizeEnabled(enabled: boolean;
+  const min_size, max_size: PCefSize);
+begin
+  PCefBrowserHost(FData)^.set_auto_resize_enabled(FData,Ord(enabled), min_size,max_size);
+end;
+
+function TCefBrowserHostRef.GetExtension: ICefExtension;
+begin
+  PCefBrowserHost(FData)^.get_extension(FData);
+end;
+
+function TCefBrowserHostRef.IsBackgroundHost: boolean;
+begin
+  PCefBrowserHost(FData)^.is_background_host(FData);
+end;
+
 procedure TCefBrowserHostRef.RunFileDialog(mode: TCefFileDialogMode;
   const title, defaultFileName: ustring; acceptFilters: TStrings; selectedAcceptFilter: Integer;
   const callback: ICefRunFileDialogCallback);
@@ -1694,6 +1922,28 @@ begin
   If data <> nil then Result := Create(data) as ICefCallback
   Else Result := nil;
 end;
+
+
+{ TCefGetExtensionResourceCallbackRef }
+
+procedure TCefGetExtensionResourceCallbackRef.Cont(const stream: ICefStreamReader);
+begin
+  PCefGetExtensionResourceCallback(FData)^.cont(FData, CefGetData(stream));
+end;
+
+procedure TCefGetExtensionResourceCallbackRef.Cancel;
+begin
+  PCefGetExtensionResourceCallback(FData)^.cancel(FData);
+end;
+
+class function TCefGetExtensionResourceCallbackRef.UnWrap(data: Pointer): ICefGetExtensionResourceCallback;
+begin
+  if (data <> nil) then
+    Result := Create(data) as ICefGetExtensionResourceCallback
+   else
+    Result := nil;
+end;
+
 
 { TCefCommandLineRef }
 
@@ -2129,10 +2379,24 @@ begin
     CefGetData(callback)) <> 0;
 end;
 
+function TCefCookieManagerRef.SetStoragePathProc(const path                  : ustring;
+                                                       persistSessionCookies : Boolean;
+                                                 const callback              : TCefCompletionCallbackProc): Boolean;
+begin
+  Result := SetStoragePath(path, persistSessionCookies, TCefFastCompletionCallback.Create(callback));
+end;
+
 function TCefCookieManagerRef.FlushStore(handler: ICefCompletionCallback): Boolean;
 begin
   Result := PCefCookieManager(fData)^.flush_store(fData, CefGetData(handler)) <> 0;
 end;
+
+function TCefCookieManagerRef.FlushStoreProc(const proc: TCefCompletionCallbackProc): Boolean;
+begin
+  Result := FlushStore(TCefFastCompletionCallback.Create(proc))
+end;
+
+
 
 class function TCefCookieManagerRef.UnWrap(data: Pointer): ICefCookieManager;
 begin
@@ -2145,6 +2409,11 @@ begin
   Result := UnWrap(cef_cookie_manager_get_global_manager(CefGetData(callback)));
 end;
 
+class function TCefCookieManagerRef.GlobalProc(const callback: TCefCompletionCallbackProc): ICefCookieManager;
+begin
+  Result := Global(TCefFastCompletionCallback.Create(callback));
+end;
+
 class function TCefCookieManagerRef.New(const path: ustring; persistSessionCookies: Boolean;
   callback: ICefCompletionCallback): ICefCookieManager;
 Var
@@ -2154,7 +2423,17 @@ begin
   Result := UnWrap(cef_cookie_manager_create_manager(@p, Ord(persistSessionCookies), CefGetData(callback)));
 end;
 
-{ TCefFileDialogCallbackRef }
+
+
+ class function TCefCookieManagerRef.NewProc(const path                  : ustring;
+                                                  persistSessionCookies : Boolean;
+                                            const callback              : TCefCompletionCallbackProc): ICefCookieManager;
+begin
+  Result := New(path, persistSessionCookies, TCefFastCompletionCallback.Create(callback));
+end;
+
+
+ { TCefFileDialogCallbackRef }
 
 procedure TCefFileDialogCallbackRef.Cont(selectedAcceptFilter: Integer; filePaths: TStrings);
 Var
@@ -2864,7 +3143,7 @@ end;
 
 procedure TCefGeolocationCallbackRef.Cont(allow : Boolean);
 begin
-  PCefGeolocationCallback(fData)^.cont(fData, Ord(allow));
+  //PCefGeolocationCallback(fData)^.cont(fData, Ord(allow));
 end;
 
 class function TCefGeolocationCallbackRef.UnWrap(data : Pointer) : ICefGeolocationCallback;
@@ -6190,5 +6469,102 @@ class function TCefZipReaderRef.New(const stream : ICefStreamReader) : ICefZipRe
 begin
   Result := UnWrap(cef_zip_reader_create(CefGetData(stream)));
 end;
+
+
+// ******************************************************
+// ****************** TCefClientRef *********************
+// ******************************************************
+
+class function TCefClientRef.UnWrap(data: Pointer): ICefClient;
+begin
+  if (data <> nil) then
+    Result := Create(data) as ICefClient
+   else
+    Result := nil;
+end;
+
+function TCefClientRef.GetContextMenuHandler: ICefContextMenuHandler;
+begin
+  result:= nil;
+end;
+
+function TCefClientRef.GetDialogHandler: ICefDialogHandler;
+begin
+  result:= nil;
+end;
+
+function TCefClientRef.GetDisplayHandler: ICefDisplayHandler;
+begin
+  result:= nil;
+end;
+
+function TCefClientRef.GetDownloadHandler: ICefDownloadHandler;
+begin
+  result:= nil;
+end;
+
+function TCefClientRef.GetDragHandler: ICefDragHandler;
+begin
+  result:= nil;
+end;
+
+function TCefClientRef.GetFindHandler: ICefFindHandler;
+begin
+  result:= nil;
+end;
+
+function TCefClientRef.GetFocusHandler: ICefFocusHandler;
+begin
+  result:= nil;
+end;
+
+function TCefClientRef.GetJsdialogHandler: ICefJsdialogHandler;
+begin
+  result:= nil;
+end;
+
+function TCefClientRef.GetKeyboardHandler: ICefKeyboardHandler;
+begin
+  result:= nil;
+end;
+
+function TCefClientRef.GetLifeSpanHandler: ICefLifeSpanHandler;
+begin
+  result:= nil;
+end;
+
+function TCefClientRef.GetLoadHandler: ICefLoadHandler;
+begin
+  result:= nil;
+end;
+
+function TCefClientRef.GetRenderHandler: ICefRenderHandler;
+begin
+  result:= nil;
+end;
+
+function TCefClientRef.GetRequestHandler: ICefRequestHandler;
+begin
+  result:= nil;
+end;
+
+function TCefClientRef.OnProcessMessageReceived(const browser: ICefBrowser; sourceProcess: TCefProcessId;
+      const message: ICefProcessMessage): Boolean;
+begin
+  Result := False;
+end;
+
+procedure TCefClientRef.RemoveReferences;
+begin
+  //
+end;
+
+
+
+
+
+
+
+
 
 end.

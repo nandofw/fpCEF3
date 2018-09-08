@@ -54,6 +54,7 @@ Type
     fOnTooltip: TOnTooltip;
     fOnStatusMessage: TOnStatusMessage;
     fOnConsoleMessage: TOnConsoleMessage;
+    fOnloadingprogresschange: TOnloadingprogresschange;
 
     { DownloadHandler }
     fOnBeforeDownload: TOnBeforeDownload;
@@ -177,7 +178,10 @@ Type
     procedure doOnFullscreenModeChange(const browser: ICefBrowser; fullscreen: Boolean); virtual;
     function doOnTooltip(const Browser: ICefBrowser; var atext: ustring): Boolean; virtual;
     procedure doOnStatusMessage(const Browser: ICefBrowser; const value: ustring); virtual;
-    function doOnConsoleMessage(const Browser: ICefBrowser; const Message, Source: ustring; line: Integer): Boolean; virtual;
+    function doOnConsoleMessage(const Browser: ICefBrowser; level: TCefLogSeverity; const Message, Source: ustring; line: Integer): Boolean; virtual;
+    procedure doOnloadingprogresschange(const browser: ICefBrowser; progress: double); virtual;
+    procedure doontextselectionchanged(const browser: ICefBrowser; selectedtext: PCefString; selectedrange: PCefrange);
+
 
     { DownloadHandler }
     procedure doOnBeforeDownload(const Browser: ICefBrowser; const downloadItem: ICefDownloadItem;
@@ -788,13 +792,22 @@ begin
   If Assigned(FOnStatusMessage) then FOnStatusMessage(Self, Browser, value);
 end;
 
-function TCustomChromiumOSR.doOnConsoleMessage(const Browser : ICefBrowser;
+function TCustomChromiumOSR.doOnConsoleMessage(const Browser : ICefBrowser; level: TCefLogSeverity;
   const Message, Source : ustring; line : Integer) : Boolean;
 begin
   Result := False;
-  If Assigned(FOnConsoleMessage) then FOnConsoleMessage(Self, Browser, message, source, line, Result);
+  If Assigned(FOnConsoleMessage) then FOnConsoleMessage(Self, Browser,level, message, source, line, Result);
 end;
 
+procedure TCustomChromiumOSR.doOnloadingprogresschange(const browser: ICefBrowser; progress: double);
+begin
+  If Assigned(fOnloadingprogresschange) then fOnloadingprogresschange(Browser, progress);
+end;
+
+procedure TCustomChromiumOSR.doontextselectionchanged(const browser: ICefBrowser; selectedtext: PCefString; selectedrange: PCefrange);
+begin
+  {empty}
+end;
 procedure TCustomChromiumOSR.doOnBeforeDownload(const Browser : ICefBrowser;
   const downloadItem : ICefDownloadItem; const suggestedName : ustring;
   const callback : ICefBeforeDownloadCallback);

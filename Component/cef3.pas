@@ -4,11 +4,12 @@
 
 unit CEF3;
 
+{$warn 5023 off : no warning about unused units}
 interface
 
 uses
-  cef3types, cef3api, cef3lib, cef3intf, cef3ref, cef3own, cef3gui, cef3lcl, cef3osr, cef3context,
-  cef3scp, LazarusPackageIntf;
+  cef3types, cef3api, cef3lib, cef3intf, cef3ref, cef3own, cef3gui, cef3lcl, 
+  cef3osr, cef3context, cef3scp, LazarusPackageIntf;
 
 implementation
 

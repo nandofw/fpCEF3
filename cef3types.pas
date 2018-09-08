@@ -2415,6 +2415,10 @@ Type
   TCefCompositionUnderlineArray = array[0..(High(Integer) div SizeOf(TCefCompositionUnderline)) - 1] of TCefCompositionUnderline;
   PCefCompositionUnderlineArray = ^TCefCompositionUnderlineArray;
 
+  TCefProcessType = (ptBrowser, ptRenderer, ptZygote, ptGPU, ptOther);
+
+
+
 Implementation
 
 function CefColorGetA(color: TCefColor): Byte;

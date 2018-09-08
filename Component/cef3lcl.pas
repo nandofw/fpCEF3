@@ -98,6 +98,7 @@ Type
       fOnTooltip: TOnTooltip;
       fOnStatusMessage: TOnStatusMessage;
       fOnConsoleMessage: TOnConsoleMessage;
+      fOnloadingprogresschange: TOnloadingprogresschange;
 
       { DownloadHandler }
       fOnBeforeDownload: TOnBeforeDownload;
@@ -209,9 +210,10 @@ Type
       procedure doOnTitleChange(const Browser: ICefBrowser; const title: ustring); virtual;
       procedure doOnFaviconUrlchange(const browser: ICefBrowser; iconUrls: TStrings); virtual;
       procedure doOnFullscreenModeChange(const browser: ICefBrowser; fullscreen: Boolean); virtual;
-      function doOnTooltip(const Browser: ICefBrowser; var atext: ustring): Boolean; virtual;
+      function  doOnTooltip(const Browser: ICefBrowser; var atext: ustring): Boolean; virtual;
       procedure doOnStatusMessage(const Browser: ICefBrowser; const value: ustring); virtual;
-      function doOnConsoleMessage(const Browser: ICefBrowser; const Message, Source: ustring; line: Integer): Boolean; virtual;
+      function  doOnConsoleMessage(const Browser: ICefBrowser; level: TCefLogSeverity; const Message, Source: ustring; line: Integer): Boolean; virtual;
+      procedure doOnloadingprogresschange(const browser: ICefBrowser; progress: double); virtual;
 
       { DownloadHandler }
       procedure doOnBeforeDownload(const Browser: ICefBrowser; const downloadItem: ICefDownloadItem;
@@ -287,6 +289,8 @@ Type
       procedure doOnScrollOffsetChanged(const browser: ICefBrowser; x,y: Double); virtual;
       procedure doOnImeCompositionRangeChanged(const browser: ICefBrowser; const selectedRange: TCefRange;
         characterBoundsCount: TSize; characterBounds: TCefRectArray); virtual;
+      procedure doontextselectionchanged(const browser: ICefBrowser;
+      selectedtext: PCefString; selectedrange: PCefrange); virtual;
 
       { RequestHandler }
       function doOnBeforeBrowse(const browser: ICefBrowser; const frame: ICefFrame;
@@ -344,6 +348,7 @@ Type
       property OnTooltip: TOnTooltip read fOnTooltip write fOnTooltip;
       property OnStatusMessage: TOnStatusMessage read fOnStatusMessage write fOnStatusMessage;
       property OnConsoleMessage: TOnConsoleMessage read fOnConsoleMessage write fOnConsoleMessage;
+      property Onloadingprogresschange: TOnloadingprogresschange read fOnloadingprogresschange write fOnloadingprogresschange;
 
       { DownloadHandler }
       property OnBeforeDownload: TOnBeforeDownload read fOnBeforeDownload write fOnBeforeDownload;
@@ -456,6 +461,7 @@ Type
       property OnTooltip;
       property OnStatusMessage;
       property OnConsoleMessage;
+      property onloadingprogresschange;
 
       property OnBeforeDownload;
       property OnDownloadUpdated;
@@ -681,6 +687,7 @@ begin
     {$ENDIF}
     {$IFDEF LINUX}
       {$IFDEF LCLGTK2}
+ 	gtk_widget_realize(PGtkWidget(Parent.Handle));
         info.parent_window := gdk_window_xwindow(PGtkWidget(Parent.Handle)^.window);
       {$ENDIF}
       {$IFDEF LCLQT}
@@ -696,7 +703,6 @@ begin
     info.y := rect.Top;
     info.width := rect.Right - rect.Left;
     info.height := rect.Bottom - rect.Top;
-
     FillChar(settings, SizeOf(TCefBrowserSettings), 0);
     settings.size := SizeOf(TCefBrowserSettings);
     GetSettings(settings);
@@ -830,7 +836,9 @@ begin
     {$IF DEFINED(DARWIN) AND NOT DEFINED(LCLCOCOA)}
       raise Exception.Create('This widgetset is not yet supported');
     {$ENDIF}
-
+  {$IFDEF DEBUG}
+  Debugln('TCustomChromium.create');
+  {$ENDIF}
     fHandler := TLCLClientHandler.Create(Self);
 
     If not Assigned(fHandler) then raise Exception.Create('fHandler is nil');
@@ -972,12 +980,17 @@ begin
   If Assigned(fOnStatusMessage) then fOnStatusMessage(Self, Browser, value);
 end;
 
-function TCustomChromium.doOnConsoleMessage(const Browser: ICefBrowser;
+function TCustomChromium.doOnConsoleMessage(const Browser: ICefBrowser; level: TCefLogSeverity;
   const Message, Source: ustring; line: Integer): Boolean;
 begin
   If Assigned(fOnConsoleMessage) then
-    fOnConsoleMessage(Self, Browser, Message, Source, line, Result)
+    fOnConsoleMessage(Self, Browser, level, Message, Source, line, Result)
   Else Result := False;
+end;
+
+procedure TCustomChromium.doOnloadingprogresschange(const browser: ICefBrowser; progress: double);
+begin
+  If Assigned(fOnloadingprogresschange) then fOnloadingprogresschange(Browser, progress);
 end;
 
 procedure TCustomChromium.doOnBeforeDownload(const Browser: ICefBrowser;
@@ -1215,6 +1228,12 @@ end;
 
 procedure TCustomChromium.doOnImeCompositionRangeChanged(const browser: ICefBrowser;
   const selectedRange: TCefRange; characterBoundsCount: TSize; characterBounds: TCefRectArray);
+begin
+  { empty }
+end;
+
+procedure TCustomChromium.doontextselectionchanged(const browser: ICefBrowser;
+      selectedtext: PCefString; selectedrange: PCefrange);
 begin
   { empty }
 end;
