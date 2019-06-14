@@ -71,6 +71,9 @@ Type
 
   TCustomChromium = class(TWinControl, IChromiumEvents)
     private
+      fParentForm: TCustomForm;
+
+
       fHandler: ICefClient;
       fBrowser: ICefBrowser;
       fBrowserId: Integer;
@@ -174,7 +177,7 @@ Type
     protected
       procedure CreateWnd; override;
       procedure WMPaint(var Msg : TLMPaint); message LM_PAINT;
-      {$IFDEF WINDOWS}
+       {$IFDEF WINDOWS}
         procedure WndProc(var Message : TLMessage); override;
       {$ENDIF}
       {$IFDEF LINUX}
@@ -423,6 +426,7 @@ Type
       constructor Create(TheOwner: TComponent); override;
       destructor Destroy; override;
       procedure Load(const url: String);
+      procedure updateposition();
   end;
 
   TChromium = class(TCustomChromium)
@@ -657,7 +661,6 @@ begin
   settings.databases := fOptions.Databases;
   settings.application_cache := fOptions.ApplicationCache;
   settings.webgl := fOptions.Webgl;
-
   settings.default_encoding := CefString(fDefaultEncoding);
   settings.background_color := TColorToCefColor(GetColorResolvingParent);
   settings.accept_language_list := CefString(fAcceptLanguageList);
@@ -680,9 +683,10 @@ begin
       info.parent_window := Handle;
     {$ENDIF}
     {$IFDEF LINUX}
-      {$IFDEF LCLGTK2}
-        info.parent_window := gdk_window_xwindow(PGtkWidget(Parent.Handle)^.window);
-      {$ENDIF}
+     {$IFDEF LCLGTK2}
+      gtk_widget_realize(PGtkWidget(Parent.Handle));
+      info.parent_window := gdk_window_xwindow(PGtkWidget(Parent.Handle)^.window);
+    {$ENDIF}
       {$IFDEF LCLQT}
         info.parent_window := QWidget_winId(TQtWidget(Parent.Handle).GetContainerWidget);
         WidgetSet.AppProcessMessages;
@@ -749,6 +753,46 @@ begin
   Exclude(FControlState, csCustomPaint);
 end;
 
+procedure TCustomChromium.updateposition();
+{$IFDEF WINDOWS}
+Var
+  Hand: THandle;
+  Rect: TRect;
+{$ENDIF}
+{$IFDEF LINUX}
+Var
+  Offset: TPoint;
+{$ENDIF}
+begin
+
+  If (not (csDesigning in ComponentState)) and Assigned(fBrowser) then
+  begin
+
+    {$IFDEF WINDOWS}
+      If Browser.Host.WindowHandle <> INVALID_HANDLE_VALUE then
+      begin
+        Rect := GetClientRect;
+        Hand := BeginDeferWindowPos(1);
+        try
+          Hand := DeferWindowPos(Hand, fBrowser.Host.WindowHandle, 0, Rect.Left, Rect.Top,
+                                 Rect.Right - Rect.Left, Rect.Bottom - Rect.Top, SWP_NOZORDER);
+        finally
+          EndDeferWindowPos(Hand);
+        end;
+      end;
+    {$ENDIF}
+    {$IFDEF LINUX}
+    Offset := ClientToParent(Point(0, 0), Parent);
+
+    CefXWindowResize(fBrowser, Offset.Y, Offset.X, Width, Height);
+   // Debugln('update x:'+inttostr(Offset.X)+' y:'+inttostr(Offset.Y)+'w:'+inttostr(Width)+' h:'+inttostr(Height));
+    //  CefXWindowResize(fBrowser, Top, Left, Width, Height);
+    {$ENDIF}
+  end;
+end;
+
+
+
 {$IFDEF WINDOWS}
 procedure TCustomChromium.WndProc(var Message : TLMessage);
 begin
@@ -789,16 +833,18 @@ begin
 end;
 {$ENDIF}
 
-procedure TCustomChromium.Resize;
+procedure TCustomChromium.resize;
 {$IFDEF WINDOWS}
 Var
   Hand: THandle;
   Rect: TRect;
 {$ENDIF}
+{$IFDEF LINUX}
+Var
+  Offset: TPoint;
+{$ENDIF}
 begin
-  inherited Resize;
-
-  If (not (csDesigning in ComponentState)) and Assigned(fBrowser) then
+   If (not (csDesigning in ComponentState)) and Assigned(fBrowser) then
   begin
     {$IFDEF WINDOWS}
       If Browser.Host.WindowHandle <> INVALID_HANDLE_VALUE then
@@ -814,7 +860,11 @@ begin
       end;
     {$ENDIF}
     {$IFDEF LINUX}
-      CefXWindowResize(fBrowser, Top, Left, Width, Height);
+    Offset := ClientToParent(Point(0, 0), Parent);
+
+    CefXWindowResize(fBrowser, Offset.Y, Offset.X, Width, Height);
+    // Debugln('update x:'+inttostr(Offset.X)+' y:'+inttostr(Offset.Y)+'w:'+inttostr(Width)+' h:'+inttostr(Height));
+    //  CefXWindowResize(fBrowser, Top, Left, Width, Height);
     {$ENDIF}
   end;
 end;

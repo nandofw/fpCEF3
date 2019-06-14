@@ -196,7 +196,7 @@ Var
   CefProductVersion: ustring = '';
   CefLocale: ustring = '';
   CefLogFile: ustring = '';
-  CefLogSeverity: TCefLogSeverity = LOGSEVERITY_DEFAULT;
+  CefLogSeverity: TCefLogSeverity = LOGSEVERITY_DISABLE;
   CefJavaScriptFlags: ustring = '';
   CefResourcesDirPath: ustring = '';
   CefLocalesDirPath: ustring = '';
@@ -221,6 +221,8 @@ Var
 
   // allow custom library location, can be relative
   CefLibraryDirPath: String = '';
+  customarg : ppchar;
+  customargcoount:integer = 0;
 
 Implementation
 
@@ -429,6 +431,8 @@ Var
   ErrCode: Integer;
 
   Args : TCefMainArgs;
+  x:integer;
+  found:boolean;
 begin
   {$IFDEF DEBUG}
   Debugln('CefInitialize');
@@ -484,13 +488,40 @@ begin
 
   ErrCode := cef_execute_process(@Args, CefGetData(app), nil);
   {$ELSE}
-  Args.argc := argc;
-  Args.argv := argv;
+   {$IfDef LINUX}
+  found:= false;
+  for x:=1 to argc do
+  begin
+  if(comparetext(argv[x-1], pchar('--type=renderer')) = 0 )then
+     found:=true
+     else
+        if(comparetext(argv[x-1], pchar('--type=gpu-process')) = 0 )then
+        found:=true
+        else
+            if(comparetext(argv[x-1], pchar('--type=zygote')) = 0 )then
+            found:=true;
+  end;
+  customarg := argv;
+  customargcoount:= argc;
+  if not(found) then
+  begin
+  inc(customargcoount);
+  if not(CefBrowserSubprocessPath = '') then
+  customarg[customargcoount-1]:= pchar('--renderer-cmd-prefix='+ ansitoutf8(CefBrowserSubprocessPath))
+  else
+  customarg[customargcoount-1]:= pchar('--renderer-cmd-prefix=/proc/self/exe');
+  end;
+  Args.argc := customargcoount;
+  Args.argv := customarg;
+  {$Else}
+  Args.argc := argv;
+  Args.argv := argc;
+  {$EndIf}
 
-  ErrCode := cef_execute_process(@Args, CefGetData(app), nil);
+  //ErrCode := cef_execute_process(@Args, CefGetData(app), nil);
   {$ENDIF}
 
-  If ErrCode >= 0 then Halt(ErrCode);
+  //If ErrCode >= 0 then Halt(ErrCode);
 
   ErrCode := cef_initialize(@Args, @settings, CefGetData(app), nil);
   If ErrCode <> 1 then
@@ -1106,17 +1137,19 @@ end;
 {$IFDEF LINUX}
   procedure CefXWindowResize(const ABrowser: ICefBrowser; const Top, Left, Width, Height: Integer);
   Var
-    changes: TXWindowChanges;
+  //  changes: TXWindowChanges;
     TheHost: ICefBrowserHost;
   begin
     TheHost := ABrowser.Host;
 
-    changes.x := Left;
-    changes.y := Top;
-    changes.width := Width;
-    changes.height := Height;
+    //changes.x := Left;
+   // changes.y := Top;
+   // changes.width := Width;
+   // changes.height := Height;
 
-    XConfigureWindow(cef_get_xdisplay(), TheHost.WindowHandle, CWX or CWY or CWHeight or CWWidth, @changes);
+    //; XConfigureWindow(cef_get_xdisplay(), TheHost.WindowHandle, CWX or CWY or CWHeight or CWWidth, @changes)
+    XMoveResizeWindow(cef_get_xdisplay(), TheHost.WindowHandle, left,top,width,height);
+   // XMoveResizeWindow(ADisplay:PDisplay; AWindow:TWindow; AX:cint; AY:cint; AWidth:cuint; AHeight:cuint)
   end;
 
   procedure CefXLooseFocus(const ABrowser: ICefBrowser);
